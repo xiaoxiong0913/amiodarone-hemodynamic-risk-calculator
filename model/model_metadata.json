@@ -1,0 +1,19 @@
+{
+  "status": "frozen",
+  "model": "XGBoost",
+  "model_sha256": "afcb0d9d3e115ed394ab9d22434b0543356c88f1c768e76155c63da09ccfcf12",
+  "features": [
+    "lactate_last_24h",
+    "invasive_ventilation_at_t0",
+    "map_mean_6h",
+    "urine_output_6h_ml",
+    "prior_vasoactive_6to1h",
+    "bilirubin_total_last_24h",
+    "map_sd_6h"
+  ],
+  "threshold": 0.2123346298933029,
+  "observed_event_rates": [
+    {"Cohort": "MIMIC-IV", "Low risk": "10.2%", "High risk": "37.4%"},
+    {"Cohort": "eICU", "Low risk": "16.8%", "High risk": "44.8%"}
+  ]
+}
