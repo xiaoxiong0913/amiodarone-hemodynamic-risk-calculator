@@ -578,7 +578,7 @@ def main() -> None:
         with st.container(border=True):
             st.markdown(
                 '<div class="panel-title">Estimated risk</div>'
-                '<div class="panel-copy">Frozen XGBoost model with the prespecified MIMIC-IV threshold.</div>',
+                '<div class="panel-copy">Frozen XGBoost model with the MIMIC-IV-derived threshold.</div>',
                 unsafe_allow_html=True,
             )
             threshold = float(metadata["threshold"])
@@ -624,7 +624,7 @@ def main() -> None:
     st.markdown(
         '<div class="evidence-note">'
         "Model developed in MIMIC-IV and externally validated in eICU. "
-        "Use the estimate to support individualized monitoring at treatment initiation."
+        "The calculator reproduces the frozen research model; prospective clinical utility has not been evaluated."
         "</div>",
         unsafe_allow_html=True,
     )
