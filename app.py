@@ -16,10 +16,18 @@ FEATURES = (
     "invasive_ventilation_at_t0",
     "map_mean_6h",
     "urine_output_6h_ml",
-    "prior_vasoactive_6to1h",
+    "hr_min_6h",
     "bilirubin_total_last_24h",
-    "map_sd_6h",
 )
+
+INPUT_RANGES = {
+    "lactate_last_24h": (0.1, 30.0),
+    "invasive_ventilation_at_t0": (0.0, 1.0),
+    "map_mean_6h": (40.0, 140.0),
+    "urine_output_6h_ml": (0.0, 10000.0),
+    "hr_min_6h": (20.0, 220.0),
+    "bilirubin_total_last_24h": (0.0, 50.0),
+}
 
 
 def sha256_file(path: Path) -> str:
@@ -32,15 +40,15 @@ def sha256_file(path: Path) -> str:
 
 def load_verified_model():
     assets = Path(__file__).resolve().parent / "model"
-    model_path = assets / "amiodarone_xgboost_model.joblib"
+    model_path = assets / "amiodarone_random_forest_model.joblib"
     metadata = json.loads((assets / "model_metadata.json").read_text(encoding="utf-8"))
     if metadata["model_sha256"] != sha256_file(model_path):
         raise RuntimeError("Model checksum mismatch")
-    if tuple(metadata["features"]) != FEATURES:
+    if tuple(metadata["features"]) != FEATURES or metadata.get("model_key") != "random_forest":
         raise RuntimeError("Feature contract mismatch")
     packaged = joblib.load(model_path)
-    if packaged.get("model_key") != "xgboost" or tuple(packaged.get("features", ())) != FEATURES:
-        raise RuntimeError("Frozen model contract mismatch")
+    if packaged.get("model_key") != metadata["model_key"] or tuple(packaged.get("features", ())) != FEATURES:
+        raise RuntimeError("Model contract mismatch")
     pipeline = packaged["pipeline"]
     if tuple(getattr(pipeline, "feature_names_in_", ())) != FEATURES:
         raise RuntimeError("Pipeline feature order mismatch")
@@ -54,27 +62,30 @@ def cached_model():
 
 def case_frame(
     lactate: float | None,
-    invasive_ventilation: bool,
+    invasive_ventilation: int | None,
     mean_map: float,
     urine_output: float | None,
-    prior_vasoactive: bool,
+    minimum_heart_rate: float | None,
     bilirubin: float | None,
-    map_variability: float | None,
 ) -> pd.DataFrame:
     values = [[
         np.nan if lactate is None else float(lactate),
-        int(invasive_ventilation),
+        np.nan if invasive_ventilation is None else int(invasive_ventilation),
         float(mean_map),
         np.nan if urine_output is None else float(urine_output),
-        int(prior_vasoactive),
+        np.nan if minimum_heart_rate is None else float(minimum_heart_rate),
         np.nan if bilirubin is None else float(bilirubin),
-        np.nan if map_variability is None else float(map_variability),
     ]]
     return pd.DataFrame(values, columns=list(FEATURES))
 
 
 def predict_probability(model, **values) -> float:
-    return float(model.predict_proba(case_frame(**values))[:, 1][0])
+    frame = case_frame(**values)
+    for feature, (minimum, maximum) in INPUT_RANGES.items():
+        value = frame.iloc[0][feature]
+        if pd.notna(value) and not minimum <= float(value) <= maximum:
+            raise ValueError(f"{feature} must be between {minimum:g} and {maximum:g}")
+    return float(model.predict_proba(frame)[:, 1][0])
 
 
 def classify_risk(probability: float, threshold: float) -> str:
@@ -500,7 +511,7 @@ def main() -> None:
         """
         <div class="app-header">
             <h1>Early hemodynamic intolerance after intravenous amiodarone</h1>
-            <p>Enter seven variables available at treatment initiation to estimate
+            <p>Enter six variables available at treatment initiation to estimate
             the probability of hemodynamic intolerance within 2 hours.</p>
         </div>
         """,
@@ -539,35 +550,30 @@ def main() -> None:
                         10.0,
                     )
                 with row_2[1]:
-                    map_sd = optional_number(
-                        "MAP standard deviation during preceding 6 h, mmHg",
-                        "map_sd",
-                        0.0,
-                        50.0,
-                        8.0,
-                        0.5,
+                    minimum_hr = optional_number(
+                        "Minimum heart rate during preceding 6 h, beats/min",
+                        "minimum_hr",
+                        20.0,
+                        220.0,
+                        65.0,
+                        1.0,
                     )
 
                 row_3 = st.columns(2, gap="medium")
                 with row_3[0]:
-                    invasive = (
-                        st.selectbox("Invasive ventilation at initiation", ("No", "Yes"))
-                        == "Yes"
+                    invasive_label = st.selectbox(
+                        "Invasive ventilation at initiation", ("No", "Yes", "Unknown")
                     )
+                    invasive = {"No": 0, "Yes": 1, "Unknown": None}[invasive_label]
                 with row_3[1]:
-                    vasoactive = (
-                        st.selectbox("Vasoactive exposure 6–1 h before initiation", ("No", "Yes"))
-                        == "Yes"
+                    bilirubin = optional_number(
+                        "Total bilirubin, mg/dL",
+                        "bilirubin",
+                        0.0,
+                        50.0,
+                        0.8,
+                        0.1,
                     )
-
-                bilirubin = optional_number(
-                    "Total bilirubin, mg/dL",
-                    "bilirubin",
-                    0.0,
-                    50.0,
-                    0.8,
-                    0.1,
-                )
                 calculate = st.form_submit_button(
                     "Calculate predicted risk",
                     type="primary",
@@ -578,7 +584,7 @@ def main() -> None:
         with st.container(border=True):
             st.markdown(
                 '<div class="panel-title">Estimated risk</div>'
-                '<div class="panel-copy">Frozen XGBoost model with the MIMIC-IV-derived threshold.</div>',
+                f'<div class="panel-copy">Final {html.escape(metadata["model"])} model with the MIMIC-IV-derived threshold.</div>',
                 unsafe_allow_html=True,
             )
             threshold = float(metadata["threshold"])
@@ -589,15 +595,15 @@ def main() -> None:
                     invasive_ventilation=invasive,
                     mean_map=mean_map,
                     urine_output=urine,
-                    prior_vasoactive=vasoactive,
+                    minimum_heart_rate=minimum_hr,
                     bilirubin=bilirubin,
-                    map_variability=map_sd,
                 )
                 risk = classify_risk(probability, threshold)
                 risk_class = "high" if risk == "High risk" else "low"
                 st.markdown(
                     (
                         '<div class="result-shell">'
+                        f'<span class="machine-output" data-probability="{probability:.17g}" data-threshold="{threshold:.17g}" style="display:none"></span>'
                         '<div class="result-label">PREDICTED 2-HOUR RISK</div>'
                         f'<div class="result-value">{probability:.1%}</div>'
                         f'<div class="risk-state {risk_class}">'
@@ -624,7 +630,8 @@ def main() -> None:
     st.markdown(
         '<div class="evidence-note">'
         "Model developed in MIMIC-IV and externally validated in eICU. "
-        "The calculator reproduces the frozen research model; prospective clinical utility has not been evaluated."
+        f"Analysis version {html.escape(metadata['analysis_version'])}; model SHA256 {html.escape(metadata['model_sha256'][:12])}…. "
+        "Prospective clinical utility has not been evaluated."
         "</div>",
         unsafe_allow_html=True,
     )

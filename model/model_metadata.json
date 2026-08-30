@@ -1,19 +1,90 @@
 {
-  "status": "frozen",
-  "model": "XGBoost",
-  "model_sha256": "afcb0d9d3e115ed394ab9d22434b0543356c88f1c768e76155c63da09ccfcf12",
+  "status": "locked",
+  "analysis_version": "scientific_revision_20260830",
+  "model": "Random forest",
+  "model_key": "random_forest",
+  "model_sha256": "fc83f5210bbbaf750d8ad5c8c1bcc0ee62a00b101b755d67c888135f54709480",
+  "model_file": "amiodarone_random_forest_model.joblib",
   "features": [
     "lactate_last_24h",
     "invasive_ventilation_at_t0",
     "map_mean_6h",
     "urine_output_6h_ml",
-    "prior_vasoactive_6to1h",
-    "bilirubin_total_last_24h",
-    "map_sd_6h"
+    "hr_min_6h",
+    "bilirubin_total_last_24h"
   ],
-  "threshold": 0.2123346298933029,
+  "inputs": [
+    {
+      "order": 1,
+      "key": "lactate_last_24h",
+      "label": "Lactate",
+      "unit": "mmol/L",
+      "time_window": "Most recent value from t0-24 h through t0",
+      "aggregation": "Most recent valid result",
+      "missing_rule": "Training-set median plus a missingness indicator"
+    },
+    {
+      "order": 2,
+      "key": "invasive_ventilation_at_t0",
+      "label": "Invasive mechanical ventilation at amiodarone initiation",
+      "unit": "0=no, 1=yes",
+      "time_window": "State at t0 using information recorded no later than t0",
+      "aggregation": "Most recent highest-priority explicit state",
+      "missing_rule": "Unknown retained as missing, then training-set median plus a missingness indicator"
+    },
+    {
+      "order": 3,
+      "key": "map_mean_6h",
+      "label": "Mean MAP during the preceding 6 hours",
+      "unit": "mmHg",
+      "time_window": "t0-6 h through t0",
+      "aggregation": "Arithmetic mean of valid MAP measurements",
+      "missing_rule": "Training-set median plus a missingness indicator"
+    },
+    {
+      "order": 4,
+      "key": "urine_output_6h_ml",
+      "label": "Urine output during the preceding 6 hours",
+      "unit": "mL",
+      "time_window": "t0-6 h through t0",
+      "aggregation": "Sum of recorded urine output",
+      "missing_rule": "Training-set median plus a missingness indicator"
+    },
+    {
+      "order": 5,
+      "key": "hr_min_6h",
+      "label": "Minimum heart rate during the preceding 6 hours",
+      "unit": "beats/min",
+      "time_window": "t0-6 h through t0",
+      "aggregation": "Minimum valid heart rate",
+      "missing_rule": "Training-set median plus a missingness indicator"
+    },
+    {
+      "order": 6,
+      "key": "bilirubin_total_last_24h",
+      "label": "Total bilirubin",
+      "unit": "mg/dL",
+      "time_window": "Most recent value from t0-24 h through t0",
+      "aggregation": "Most recent valid result",
+      "missing_rule": "Training-set median plus a missingness indicator"
+    }
+  ],
+  "threshold": 0.1602182106443822,
+  "threshold_source": "Youden index applied to Random Forest MIMIC-IV repeated out-of-fold probabilities",
+  "missing_rule": "Median estimated from the applicable MIMIC-IV training data; missingness indicators retained",
   "observed_event_rates": [
-    {"Cohort": "MIMIC-IV", "Low risk": "10.2%", "High risk": "37.4%"},
-    {"Cohort": "eICU", "Low risk": "16.8%", "High risk": "44.8%"}
-  ]
+    {
+      "Cohort": "MIMIC-IV",
+      "Low risk": "7.3%",
+      "High risk": "31.5%"
+    },
+    {
+      "Cohort": "eICU",
+      "Low risk": "13.0%",
+      "High risk": "32.7%"
+    }
+  ],
+  "training_results_version": "scientific_revision_20260830",
+  "internal_auroc": 0.7397816142836063,
+  "external_auroc": 0.6748573835566379
 }
