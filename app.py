@@ -603,7 +603,9 @@ def main() -> None:
                 st.markdown(
                     (
                         '<div class="result-shell">'
-                        f'<span class="machine-output" data-probability="{probability:.17g}" data-threshold="{threshold:.17g}" style="display:none"></span>'
+                        f'<span class="machine-output" data-probability="{probability:.17g}" data-threshold="{threshold:.17g}" '
+                        f'data-model-sha256="{html.escape(metadata["model_sha256"])}" '
+                        f'data-analysis-version="{html.escape(metadata["analysis_version"])}" style="display:none"></span>'
                         '<div class="result-label">PREDICTED 2-HOUR RISK</div>'
                         f'<div class="result-value">{probability:.1%}</div>'
                         f'<div class="risk-state {risk_class}">'
