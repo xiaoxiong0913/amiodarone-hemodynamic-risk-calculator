@@ -80,11 +80,11 @@
     },
     {
       "Cohort": "eICU",
-      "Low risk": "13.0%",
-      "High risk": "32.7%"
+      "Low risk": "13.1%",
+      "High risk": "32.6%"
     }
   ],
   "training_results_version": "scientific_revision_20260830",
   "internal_auroc": 0.7397816142836063,
-  "external_auroc": 0.6748573835566379
+  "external_auroc": 0.6748261404433733
 }
