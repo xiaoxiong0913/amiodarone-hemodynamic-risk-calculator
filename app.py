@@ -11,6 +11,9 @@ import pandas as pd
 import streamlit as st
 
 
+RESEARCH_NOTICE = "**For research use only.** Not validated for clinical use."
+
+
 FEATURES = (
     "lactate_last_24h",
     "invasive_ventilation_at_t0",
@@ -485,7 +488,7 @@ def render_benchmark_table(metadata: dict) -> None:
             '<div class="benchmark-title">Observed event rates at this threshold</div>'
             '<div class="benchmark-table">'
             '<div class="benchmark-row header">'
-            "<span>Cohort</span><span>Low risk</span><span>High risk</span>"
+            "<span>Cohort</span><span>Lower-risk group</span><span>Higher-risk group</span>"
             "</div>"
             f"{rows}</div>"
         ),
@@ -526,6 +529,7 @@ def main() -> None:
                 '<div class="panel-copy">Measurements should reflect the period immediately before amiodarone initiation.</div>',
                 unsafe_allow_html=True,
             )
+            st.warning(RESEARCH_NOTICE)
             with st.form("amiodarone_risk_form"):
                 row_1 = st.columns(2, gap="medium")
                 with row_1[0]:
@@ -587,6 +591,7 @@ def main() -> None:
                 f'<div class="panel-copy">Final {html.escape(metadata["model"])} model with the MIMIC-IV-derived threshold.</div>',
                 unsafe_allow_html=True,
             )
+            st.warning(RESEARCH_NOTICE)
             threshold = float(metadata["threshold"])
             if calculate:
                 probability = predict_probability(
@@ -600,6 +605,7 @@ def main() -> None:
                 )
                 risk = classify_risk(probability, threshold)
                 risk_class = "high" if risk == "High risk" else "low"
+                risk_label = "Higher-risk research group" if risk_class == "high" else "Lower-risk research group"
                 st.markdown(
                     (
                         '<div class="result-shell">'
@@ -609,7 +615,7 @@ def main() -> None:
                         '<div class="result-label">PREDICTED 2-HOUR RISK</div>'
                         f'<div class="result-value">{probability:.1%}</div>'
                         f'<div class="risk-state {risk_class}">'
-                        f"<span>{risk}</span>"
+                        f"<span>{risk_label}</span>"
                         f'<span class="threshold">threshold {threshold:.1%}</span>'
                         "</div></div>"
                     ),
